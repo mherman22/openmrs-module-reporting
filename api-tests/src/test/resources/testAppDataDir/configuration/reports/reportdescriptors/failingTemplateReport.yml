@@ -1,0 +1,11 @@
+key: "missingtemplateexport"
+uuid: "a1d5f3c4-9a4d-11ee-b9d1-0242ac120002"
+name: "sample.export.missingtemplate.name"
+description: "sample.export.missingtemplate.description"
+datasets:
+  - key: "people"
+    type: "sql"
+    config: "sql/persons.sql"
+designs:
+  - type: "excel"
+    template: "templates/doesNotExist.xls"

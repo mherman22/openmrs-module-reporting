@@ -1,0 +1,10 @@
+key: "unsupporteddatasettypeexport"
+uuid: "8c4a71e2-9a4d-11ee-b9d1-0242ac120002"
+name: "sample.export.unsupporteddatasettype.name"
+description: "sample.export.unsupporteddatasettype.description"
+datasets:
+  - key: "people"
+    type: "notaregistereddatasetfactory"
+    config: "sql/persons.sql"
+designs:
+  - type: "csv"

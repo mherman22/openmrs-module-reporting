@@ -42,7 +42,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -58,16 +57,34 @@ public class ReportLoader {
         return OpenmrsUtil.getApplicationDataDirectory() +  File.separator + "configuration" +  File.separator + "reports" +  File.separator + "reportdescriptors";
     }
 
+    /**
+     * Logs and continues past any descriptor that fails to parse, build or save.
+     */
     public static void loadReportsFromConfig() {
         for (ReportDescriptor reportDescriptor : loadReportDescriptors()) {
-            loadReportFromDescriptor(reportDescriptor);
+            try {
+                loadReportFromDescriptor(reportDescriptor);
+            }
+            catch (Exception e) {
+                log.error("Unable to load report " + describe(reportDescriptor), e);
+            }
         }
     }
 
+    private static String describe(ReportDescriptor reportDescriptor) {
+        String identifier = ObjectUtil.coalesce(reportDescriptor.getUuid(), reportDescriptor.getKey(),
+                reportDescriptor.getName());
+        return identifier == null ? "with no uuid, key or name" : identifier;
+    }
+
+    /**
+     * Builds the definition and its designs before saving either, so a descriptor that fails to build
+     * leaves whatever was saved for it previously untouched.
+     */
     public static void loadReportFromDescriptor(ReportDescriptor reportDescriptor) {
         ReportDefinition reportDefinition = constructReportDefinition(reportDescriptor);
-        saveReportDefinition(reportDefinition);
         List<ReportDesign> reportDesigns = constructReportDesigns(reportDefinition, reportDescriptor);
+        saveReportDefinition(reportDefinition);
         saveReportDesigns(reportDefinition, reportDesigns);
     }
 
@@ -401,13 +418,15 @@ public class ReportLoader {
 
     public static List<ReportDescriptor> loadReportDescriptors() {
         List<ReportDescriptor> reportDescriptors = new ArrayList<ReportDescriptor>();
-        Collection<File> files = null;
+        List<File> files = null;
 
         try {
             File reportDir = new File(getReportingDescriptorsConfigurationDir());
             if (reportDir.exists()) {
                 // search all directories and subdirectories for YAML files
-                files = FileUtils.listFiles(reportDir, FileFilterUtils.suffixFileFilter("yml"), TrueFileFilter.INSTANCE);
+                files = new ArrayList<File>(FileUtils.listFiles(reportDir, FileFilterUtils.suffixFileFilter("yml"), TrueFileFilter.INSTANCE));
+                // FileUtils.listFiles order is unspecified, so sort for a stable load order
+                Collections.sort(files);
             }
         }
         catch (Exception e) {
@@ -416,7 +435,17 @@ public class ReportLoader {
 
         if (files != null) {
             for (File file : files) {
-                reportDescriptors.add(ReportLoader.load(file));
+                try {
+                    ReportDescriptor reportDescriptor = ReportLoader.load(file);
+                    // load returns null only for a file that vanished between the listing and the open
+                    if (reportDescriptor != null) {
+                        reportDescriptors.add(reportDescriptor);
+                    }
+                }
+                catch (Exception e) {
+                    log.error("Unable to load report descriptor " + file.getAbsolutePath()
+                            + "; skipping it and continuing with the rest", e);
+                }
             }
         }
 

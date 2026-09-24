@@ -1,0 +1,8 @@
+key: "uuidlessexport"
+name: "sample.export.uuidless.name"
+datasets:
+  - key: "people"
+    type: "notaregistereddatasetfactory"
+    config: "sql/persons.sql"
+designs:
+  - type: "csv"
