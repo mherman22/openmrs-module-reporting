@@ -19,7 +19,6 @@ import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class StartupReportLoaderIntegrationTest extends BaseModuleContextSensitiveTest {
@@ -58,12 +57,11 @@ public class StartupReportLoaderIntegrationTest extends BaseModuleContextSensiti
     }
 
     /**
-     * ReportingModuleActivator.started() looks this component up by name, so an inner bean or a
-     * renamed one would stop the module rather than fail a build.
+     * ReportingModuleActivator.started() resolves this component by type, and Spring does not return
+     * an inner bean definition by type.
      */
     @Test
-    public void shouldRegisterTheLoaderUnderTheNameTheActivatorLooksUp() {
-        assertThat(Context.getRegisteredComponent("reportingStartupReportLoader", StartupReportLoader.class),
-                notNullValue());
+    public void shouldRegisterExactlyOneLoaderForTheActivatorToResolveByType() {
+        assertThat(Context.getRegisteredComponents(StartupReportLoader.class).size(), is(1));
     }
 }

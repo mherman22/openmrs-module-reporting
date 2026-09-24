@@ -3,14 +3,6 @@ package org.openmrs.module.reporting.config;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.AppenderRef;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.layout.PatternLayout;
-import org.openmrs.logging.MemoryAppender;
 import org.hibernate.cfg.Environment;
 import org.junit.Test;
 import org.openmrs.api.context.Context;
@@ -234,93 +226,47 @@ public class ReportLoaderIntegrationTest extends BaseModuleContextSensitiveTest 
 
     @Test
     public void shouldLogAtErrorWithItsCauseTheFileOfADescriptorThatFailsToParse() {
-        MemoryAppender appender = startCapturingReportLoaderLogs();
+        LogCapture logs = LogCapture.start(ReportLoader.class);
         try {
             ReportLoader.loadReportsFromConfig();
 
-            String event = errorEventNaming(appender, "failingParseReport.yml");
+            String event = logs.errorEventNaming("failingParseReport.yml");
             assertThat(event, notNullValue());
             // the logged message names the file, not the reason; Jackson's reference chain has it
-            assertThat(throwableOf(event), containsString("DataSetDescriptor[\"config\"]"));
+            assertThat(logs.throwableOf(event), containsString("DataSetDescriptor[\"config\"]"));
         }
         finally {
-            stopCapturingReportLoaderLogs(appender);
+            logs.stop();
         }
     }
 
     @Test
     public void shouldLogAtErrorWithItsCauseAReportThatFailsToBuild() {
-        MemoryAppender appender = startCapturingReportLoaderLogs();
+        LogCapture logs = LogCapture.start(ReportLoader.class);
         try {
             ReportLoader.loadReportsFromConfig();
 
-            String event = errorEventNaming(appender, "8c4a71e2-9a4d-11ee-b9d1-0242ac120002");
+            String event = logs.errorEventNaming("8c4a71e2-9a4d-11ee-b9d1-0242ac120002");
             assertThat(event, notNullValue());
-            assertThat(throwableOf(event), containsString("notaregistereddatasetfactory"));
+            assertThat(logs.throwableOf(event), containsString("notaregistereddatasetfactory"));
         }
         finally {
-            stopCapturingReportLoaderLogs(appender);
+            logs.stop();
         }
     }
 
     @Test
     public void shouldLogAtErrorWhateverIdentifierAReportThatFailsToBuildDeclares() {
-        MemoryAppender appender = startCapturingReportLoaderLogs();
+        LogCapture logs = LogCapture.start(ReportLoader.class);
         try {
             ReportLoader.loadReportsFromConfig();
 
-            assertThat(errorEventNaming(appender, "Unable to load report uuidlessexport"), notNullValue());
-            assertThat(errorEventNaming(appender, "Unable to load report sample.export.keyless.name"), notNullValue());
-            assertThat(errorEventNaming(appender, "Unable to load report with no uuid, key or name"), notNullValue());
+            assertThat(logs.errorEventNaming("Unable to load report uuidlessexport"), notNullValue());
+            assertThat(logs.errorEventNaming("Unable to load report sample.export.keyless.name"), notNullValue());
+            assertThat(logs.errorEventNaming("Unable to load report with no uuid, key or name"), notNullValue());
         }
         finally {
-            stopCapturingReportLoaderLogs(appender);
+            logs.stop();
         }
-    }
-
-    private String errorEventNaming(MemoryAppender appender, String identifier) {
-        for (String event : appender.getLogLines()) {
-            if (messageOf(event).startsWith("ERROR ") && messageOf(event).contains(identifier)) {
-                return event;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Returns the message without the stack trace log4j2 appends after it, so an assertion
-     * about what was logged cannot be satisfied by the trace.
-     */
-    private String messageOf(String event) {
-        return event.split("\\r?\\n", 2)[0];
-    }
-
-    private String throwableOf(String event) {
-        String[] messageAndThrowable = event.split("\\r?\\n", 2);
-        return messageAndThrowable.length == 2 ? messageAndThrowable[1] : "";
-    }
-
-    private MemoryAppender startCapturingReportLoaderLogs() {
-        LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        Configuration configuration = context.getConfiguration();
-        MemoryAppender appender = MemoryAppender.newBuilder().setName("REPORT_LOADER_ERRORS")
-                .setLayout(PatternLayout.newBuilder().withPattern("%p %m%n%ex").withConfiguration(configuration).build())
-                .setConfiguration(configuration).build();
-        appender.start();
-        configuration.addAppender(appender);
-        LoggerConfig loggerConfig = LoggerConfig.createLogger(false, Level.ALL, ReportLoader.class.getName(), null,
-            new AppenderRef[] { AppenderRef.createAppenderRef(appender.getName(), Level.ALL, null) }, null,
-            configuration, null);
-        loggerConfig.addAppender(appender, Level.ALL, null);
-        configuration.addLogger(ReportLoader.class.getName(), loggerConfig);
-        context.updateLoggers();
-        return appender;
-    }
-
-    private void stopCapturingReportLoaderLogs(MemoryAppender appender) {
-        LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        context.getConfiguration().removeLogger(ReportLoader.class.getName());
-        appender.stop();
-        context.updateLoggers();
     }
 }

@@ -36,7 +36,9 @@ public class ReportingModuleActivator extends BaseModuleActivator implements Dae
     @Override
 	public void started() {
 		ReportingTimerTask.setEnabled(true);
-		Context.getRegisteredComponent("reportingStartupReportLoader", StartupReportLoader.class).loadIfEnabled();
+		for (StartupReportLoader loader : Context.getRegisteredComponents(StartupReportLoader.class)) {
+			loader.loadIfEnabled();
+		}
 		log.info("Reporting Module Started...");
 	}
 
