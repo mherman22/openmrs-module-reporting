@@ -68,20 +68,39 @@ public class StartupReportLoader implements GlobalPropertyListener {
 			return;
 		}
 		try {
-			// a save that triggered this has not committed, so the load needs its own transaction
+			// a save that triggered this has not committed, so the descriptors need their own transactions
 			TransactionTemplate template = new TransactionTemplate(transactionManager);
 			template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-			template.execute(new TransactionCallbackWithoutResult() {
-				@Override
-				protected void doInTransactionWithoutResult(TransactionStatus status) {
-					ReportLoader.loadReportsFromConfig();
-				}
-			});
-			loaded.set(true);
+			boolean allLoaded = true;
+			for (ReportDescriptor reportDescriptor : ReportLoader.loadReportDescriptors()) {
+				allLoaded &= loadInItsOwnTransaction(template, reportDescriptor);
+			}
+			// a later trigger in the same boot gets another go at whatever did not load
+			loaded.set(allLoaded);
 		}
 		catch (Exception e) {
 			// throwing here would roll back whatever save notified this listener
 			log.error("Unable to load reports from configuration", e);
+		}
+	}
+
+	/**
+	 * A transaction per descriptor, so one that fails to save does not roll back the descriptors
+	 * already saved before it.
+	 */
+	private boolean loadInItsOwnTransaction(TransactionTemplate template, final ReportDescriptor reportDescriptor) {
+		try {
+			template.execute(new TransactionCallbackWithoutResult() {
+				@Override
+				protected void doInTransactionWithoutResult(TransactionStatus status) {
+					ReportLoader.loadReportFromDescriptor(reportDescriptor);
+				}
+			});
+			return true;
+		}
+		catch (Exception e) {
+			log.error("Unable to load report " + ReportLoader.describe(reportDescriptor), e);
+			return false;
 		}
 	}
 }

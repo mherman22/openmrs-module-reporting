@@ -19,6 +19,7 @@ import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class StartupReportLoaderIntegrationTest extends BaseModuleContextSensitiveTest {
@@ -50,10 +51,17 @@ public class StartupReportLoaderIntegrationTest extends BaseModuleContextSensiti
     public void shouldLoadReportsWhenTheStartupPropertyIsSetAfterTheModuleHasStarted() {
         assertThat(savedDefinitionNames().isEmpty(), is(true));
 
-        Context.getAdministrationService().saveGlobalProperty(new GlobalProperty(
-                ReportingConstants.GLOBAL_PROPERTY_LOAD_REPORTS_FROM_CONFIGURATION_AT_STARTUP, "true"));
+        LogCapture startupLogs = LogCapture.start(StartupReportLoader.class);
+        try {
+            Context.getAdministrationService().saveGlobalProperty(new GlobalProperty(
+                    ReportingConstants.GLOBAL_PROPERTY_LOAD_REPORTS_FROM_CONFIGURATION_AT_STARTUP, "true"));
 
-        assertThat(savedDefinitionNames(), hasItem("startup.valid.name"));
+            assertThat(savedDefinitionNames(), hasItem("startup.valid.name"));
+            assertThat(startupLogs.errorEventNaming("Unable to load report"), nullValue());
+        }
+        finally {
+            startupLogs.stop();
+        }
     }
 
     /**

@@ -71,7 +71,7 @@ public class ReportLoader {
         }
     }
 
-    private static String describe(ReportDescriptor reportDescriptor) {
+    static String describe(ReportDescriptor reportDescriptor) {
         String identifier = ObjectUtil.coalesce(reportDescriptor.getUuid(), reportDescriptor.getKey(),
                 reportDescriptor.getName());
         return identifier == null ? "with no uuid, key or name" : identifier;

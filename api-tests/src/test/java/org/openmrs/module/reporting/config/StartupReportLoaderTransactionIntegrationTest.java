@@ -24,6 +24,8 @@ public class StartupReportLoaderTransactionIntegrationTest extends BaseModuleCon
 
     private static final String OVERSIZED_DESCRIPTOR_UUID = "3f1b6a02-1111-4c2a-9f0e-000000000002";
 
+    private static final String VALID_DESCRIPTOR_UUID = "3f1b6a02-1111-4c2a-9f0e-000000000003";
+
     @Autowired @Qualifier("reportingReportDefinitionService")
     ReportDefinitionService reportDefinitionService;
 
@@ -44,21 +46,18 @@ public class StartupReportLoaderTransactionIntegrationTest extends BaseModuleCon
     }
 
     /**
-     * The only descriptor here fails while saving, which leaves the session it was saved in unusable.
+     * One descriptor here fails while saving, which leaves the session it was saved in unusable.
      * Whoever set the property has to be able to go on using theirs.
      */
     @Test
     public void shouldLeaveTheSessionOfWhoeverSetThePropertyUsable() {
-        LogCapture reportLogs = LogCapture.start(ReportLoader.class);
         LogCapture startupLogs = LogCapture.start(StartupReportLoader.class);
         try {
             Context.getAdministrationService().saveGlobalProperty(enabledStartupProperty());
 
             unlatchedLoader().globalPropertyChanged(enabledStartupProperty());
 
-            // ReportLoader names a failing descriptor by its uuid
-            assertThat(reportLogs.errorEventNaming(OVERSIZED_DESCRIPTOR_UUID), notNullValue());
-            assertThat(startupLogs.errorEventNaming("Unable to load reports from configuration"), notNullValue());
+            assertThat(startupLogs.errorEventNaming(OVERSIZED_DESCRIPTOR_UUID), notNullValue());
 
             assertThat(reportDefinitionService.getDefinitionByUuid(OVERSIZED_DESCRIPTOR_UUID), nullValue());
             assertThat(Context.getAdministrationService().getGlobalProperty(
@@ -66,7 +65,24 @@ public class StartupReportLoaderTransactionIntegrationTest extends BaseModuleCon
         }
         finally {
             startupLogs.stop();
-            reportLogs.stop();
+        }
+    }
+
+    /**
+     * The valid descriptor sorts before the failing one, so it is saved first. The failure that
+     * follows it must not take it back out.
+     */
+    @Test
+    public void shouldKeepADescriptorThatSavedBeforeOneThatFailed() {
+        LogCapture startupLogs = LogCapture.start(StartupReportLoader.class);
+        try {
+            unlatchedLoader().globalPropertyChanged(enabledStartupProperty());
+
+            assertThat(startupLogs.errorEventNaming(OVERSIZED_DESCRIPTOR_UUID), notNullValue());
+            assertThat(reportDefinitionService.getDefinitionByUuid(VALID_DESCRIPTOR_UUID), notNullValue());
+        }
+        finally {
+            startupLogs.stop();
         }
     }
 
@@ -82,7 +98,7 @@ public class StartupReportLoaderTransactionIntegrationTest extends BaseModuleCon
         try {
             loader.globalPropertyChanged(enabledStartupProperty());
 
-            assertThat(startupLogs.errorEventNaming("Unable to load reports from configuration"), notNullValue());
+            assertThat(startupLogs.errorEventNaming(OVERSIZED_DESCRIPTOR_UUID), notNullValue());
         }
         finally {
             startupLogs.stop();
