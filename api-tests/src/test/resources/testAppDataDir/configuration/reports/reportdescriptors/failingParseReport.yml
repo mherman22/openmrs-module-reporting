@@ -1,0 +1,15 @@
+key: "malformedexport"
+uuid: "6f1c2b10-9a4d-11ee-b9d1-0242ac120002"
+name: "sample.export.malformed.name"
+description: "sample.export.malformed.description"
+parameters:
+  - key: "startDate"
+    type: "java.util.Date"
+    label: "startDate.label"
+datasets:
+  - key: "people"
+    type: "sql"
+    config:
+      sql: "sql/persons.sql"
+designs:
+  - type: "csv"

@@ -1,0 +1,6 @@
+datasets:
+  - key: "people"
+    type: "notaregistereddatasetfactory"
+    config: "sql/persons.sql"
+designs:
+  - type: "csv"
